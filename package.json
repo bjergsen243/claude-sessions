@@ -3,8 +3,7 @@
   "version": "1.1.0",
   "description": "Visual dashboard for Claude Code session history — browse, search, resume, and manage your sessions",
   "scripts": {
-    "start": "node server.js",
-    "scan": "node scan.js > sessions.json"
+    "start": "node server.js"
   },
   "keywords": ["claude", "claude-code", "dashboard", "session-viewer"],
   "license": "MIT"
