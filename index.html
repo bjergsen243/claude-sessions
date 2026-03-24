@@ -49,13 +49,19 @@
 
     .header h1 .icon { color: var(--cyan); }
 
+    .header-right {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
     .controls {
       display: flex;
       gap: 8px;
       align-items: center;
     }
 
-    .controls button {
+    .controls button, .refresh-btn {
       background: var(--surface);
       border: 1px solid var(--border);
       color: var(--text-dim);
@@ -67,8 +73,11 @@
       transition: all 0.15s;
     }
 
-    .controls button:hover { color: var(--text); border-color: var(--text-dim); }
+    .controls button:hover, .refresh-btn:hover { color: var(--text); border-color: var(--text-dim); }
     .controls button.active { color: var(--cyan); border-color: var(--cyan); background: rgba(88,166,255,0.1); }
+    .refresh-btn { color: var(--green); }
+    .refresh-btn:hover { border-color: var(--green); }
+    .refresh-btn.loading { opacity: 0.5; pointer-events: none; }
 
     .stats-bar {
       display: flex;
@@ -112,9 +121,7 @@
     .search-bar input:focus { border-color: var(--cyan); }
     .search-bar input::placeholder { color: var(--text-dim); }
 
-    .day-group {
-      margin-bottom: 24px;
-    }
+    .day-group { margin-bottom: 24px; }
 
     .day-header {
       font-size: 13px;
@@ -148,11 +155,12 @@
       display: grid;
       grid-template-columns: 1fr auto;
       gap: 8px;
-      transition: border-color 0.15s;
-      cursor: default;
+      transition: all 0.15s;
+      cursor: pointer;
     }
 
     .session:hover { border-color: var(--text-dim); }
+    .session.deleting { opacity: 0.4; transform: scale(0.98); }
 
     .session-main {
       display: flex;
@@ -177,25 +185,15 @@
       align-items: center;
     }
 
-    .session-meta .project {
-      color: var(--cyan);
-      font-weight: 500;
-    }
-
+    .session-meta .project { color: var(--cyan); font-weight: 500; }
     .session-meta .time { color: var(--text-dim); }
-
-    .session-meta .duration {
-      color: var(--yellow);
-    }
-
-    .session-meta .msgs {
-      color: var(--green);
-    }
+    .session-meta .duration { color: var(--yellow); }
+    .session-meta .msgs { color: var(--green); }
 
     .session-right {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
     }
 
     .duration-bar {
@@ -212,6 +210,40 @@
       background: var(--cyan);
     }
 
+    .session-actions {
+      display: flex;
+      gap: 4px;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+
+    .session:hover .session-actions { opacity: 1; }
+
+    .action-btn {
+      background: none;
+      border: 1px solid transparent;
+      color: var(--text-dim);
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-family: inherit;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+
+    .action-btn.resume:hover { color: var(--green); border-color: var(--green); background: rgba(63,185,80,0.1); }
+    .action-btn.resume.copied { opacity: 1; color: var(--green); border-color: var(--green); background: rgba(63,185,80,0.15); }
+    .action-btn.delete:hover { color: var(--red); border-color: var(--red); background: rgba(248,81,73,0.1); }
+
+    .action-btn.delete.confirm {
+      opacity: 1;
+      color: var(--red);
+      border-color: var(--red);
+      background: rgba(248,81,73,0.15);
+      font-weight: 600;
+    }
+
     .empty-state {
       text-align: center;
       padding: 48px;
@@ -219,13 +251,13 @@
       font-size: 14px;
     }
 
-    .loading {
+    .loading-state {
       text-align: center;
       padding: 48px;
       color: var(--text-dim);
     }
 
-    .loading .spinner {
+    .spinner {
       display: inline-block;
       width: 20px;
       height: 20px;
@@ -238,48 +270,8 @@
 
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    .drop-zone {
-      border: 2px dashed var(--border);
-      border-radius: 12px;
-      padding: 48px;
-      text-align: center;
-      color: var(--text-dim);
-      margin-bottom: 24px;
-      transition: all 0.2s;
-    }
-
-    .drop-zone.active {
-      border-color: var(--cyan);
-      background: rgba(88,166,255,0.05);
-      color: var(--cyan);
-    }
-
-    .drop-zone p { margin-bottom: 12px; }
-
-    .drop-zone .browse-btn {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      color: var(--cyan);
-      padding: 8px 20px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-family: inherit;
-      font-size: 13px;
-    }
-
-    .drop-zone .browse-btn:hover { border-color: var(--cyan); }
-
-    #fileInput { display: none; }
-
-    .heatmap {
-      margin-bottom: 24px;
-    }
-
-    .heatmap-title {
-      font-size: 13px;
-      color: var(--text-dim);
-      margin-bottom: 8px;
-    }
+    .heatmap { margin-bottom: 24px; }
+    .heatmap-title { font-size: 13px; color: var(--text-dim); margin-bottom: 8px; }
 
     .heatmap-grid {
       display: flex;
@@ -299,22 +291,184 @@
     .heatmap-cell.l2 { background: rgba(88,166,255,0.4); border-color: rgba(88,166,255,0.5); }
     .heatmap-cell.l3 { background: rgba(88,166,255,0.6); border-color: rgba(88,166,255,0.7); }
     .heatmap-cell.l4 { background: rgba(88,166,255,0.85); border-color: var(--cyan); }
-
     .heatmap-cell[title] { cursor: help; }
+
+    /* ── Detail view ── */
+
+    .detail-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 200;
+      opacity: 0;
+      transition: opacity 0.2s;
+      pointer-events: none;
+    }
+
+    .detail-overlay.show { opacity: 1; pointer-events: all; }
+
+    .detail-panel {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: min(720px, 85vw);
+      height: 100vh;
+      background: var(--bg);
+      border-left: 1px solid var(--border);
+      z-index: 201;
+      display: flex;
+      flex-direction: column;
+      transform: translateX(100%);
+      transition: transform 0.25s ease;
+    }
+
+    .detail-panel.show { transform: translateX(0); }
+
+    .detail-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .detail-header .back-btn, .detail-header .resume-detail-btn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      padding: 4px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 12px;
+    }
+
+    .detail-header .back-btn:hover { color: var(--text); border-color: var(--text-dim); }
+    .detail-header .resume-detail-btn { color: var(--green); border-color: var(--green); }
+    .detail-header .resume-detail-btn:hover { background: rgba(63,185,80,0.1); }
+
+    .detail-info {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    .detail-info .project { color: var(--cyan); font-weight: 500; }
+
+    .detail-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+    }
+
+    .msg {
+      margin-bottom: 12px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      line-height: 1.5;
+      word-break: break-word;
+    }
+
+    .msg .msg-text {
+      white-space: pre-wrap;
+    }
+
+    .msg.user {
+      background: rgba(88,166,255,0.08);
+      border-left: 3px solid var(--cyan);
+    }
+
+    .msg.assistant {
+      background: var(--surface);
+      border-left: 3px solid var(--green);
+    }
+
+    .msg .msg-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .msg .msg-role {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 600;
+    }
+
+    .msg.user .msg-role { color: var(--cyan); }
+    .msg.assistant .msg-role { color: var(--green); }
+
+    .msg .msg-time {
+      font-size: 10px;
+      color: var(--text-dim);
+    }
+
+    .msg .tool-calls {
+      margin-top: 8px;
+      padding-top: 6px;
+      border-top: 1px solid var(--border);
+    }
+
+    .msg .tool-call {
+      display: inline-block;
+      background: rgba(163,113,247,0.1);
+      border: 1px solid rgba(163,113,247,0.2);
+      color: var(--purple);
+      padding: 1px 6px;
+      border-radius: 4px;
+      margin: 2px 4px 2px 0;
+      font-size: 10px;
+    }
+
+    .detail-loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 48px;
+      color: var(--text-dim);
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 16px;
+      font-size: 12px;
+      color: var(--text);
+      opacity: 0;
+      transform: translateY(8px);
+      transition: all 0.2s;
+      pointer-events: none;
+      z-index: 100;
+    }
+
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.error { border-color: var(--red); color: var(--red); }
   </style>
 </head>
 <body>
   <div class="header">
-    <h1><span class="icon">󰊠</span> Claude Sessions</h1>
-    <div class="controls">
-      <button class="active" data-range="week">Week</button>
-      <button data-range="month">Month</button>
-      <button data-range="all">All</button>
+    <h1><span class="icon">&#xf0320;</span> Claude Sessions</h1>
+    <div class="header-right">
+      <button class="refresh-btn" id="refreshBtn" onclick="loadSessions()">Refresh</button>
+      <div class="controls">
+        <button class="active" data-range="week">Week</button>
+        <button data-range="month">Month</button>
+        <button data-range="all">All</button>
+      </div>
     </div>
   </div>
 
   <div class="stats-bar" id="stats"></div>
-
   <div class="heatmap" id="heatmap"></div>
 
   <div class="search-bar">
@@ -322,42 +476,201 @@
   </div>
 
   <div id="content">
-    <div class="drop-zone" id="dropZone">
-      <p>Load your session data</p>
-      <p style="font-size: 12px; margin-bottom: 16px;">
-        Run the scan script to generate <code>sessions.json</code>, then open this page.
-      </p>
-      <p style="font-size: 12px; color: var(--text-dim);">
-        <code>node scan.js > sessions.json</code>
-      </p>
-      <br/>
-      <button class="browse-btn" onclick="document.getElementById('fileInput').click()">Browse File</button>
-      <input type="file" id="fileInput" accept=".json" />
+    <div class="loading-state"><div class="spinner"></div><div>Loading sessions...</div></div>
+  </div>
+
+  <div class="detail-overlay" id="detailOverlay" onclick="closeDetail()"></div>
+  <div class="detail-panel" id="detailPanel">
+    <div class="detail-header">
+      <button class="back-btn" onclick="closeDetail()">Back</button>
+      <div class="detail-info" id="detailInfo"></div>
+      <button class="resume-detail-btn" id="resumeDetailBtn">Resume</button>
+    </div>
+    <div class="detail-messages" id="detailMessages">
+      <div class="detail-loading"><div class="spinner"></div></div>
     </div>
   </div>
 
+  <div class="toast" id="toast"></div>
+
   <script>
+    const API = window.location.origin;
     let sessions = [];
     let currentRange = 'week';
     let searchQuery = '';
+    let pendingConfirm = null;
 
     // ── Data loading ──
 
-    // Try auto-loading sessions.json from same directory
-    fetch('sessions.json')
-      .then(r => r.ok ? r.json() : Promise.reject())
-      .then(data => { sessions = data; render(); })
-      .catch(() => {}); // Show drop zone if not found
-
-    document.getElementById('fileInput').addEventListener('change', e => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = ev => {
-        sessions = JSON.parse(ev.target.result);
+    async function loadSessions() {
+      const btn = document.getElementById('refreshBtn');
+      btn.classList.add('loading');
+      btn.textContent = '...';
+      try {
+        const res = await fetch(`${API}/api/sessions`);
+        if (!res.ok) throw new Error('Failed to fetch');
+        sessions = await res.json();
         render();
-      };
-      reader.readAsText(file);
+      } catch (err) {
+        // Fallback: try sessions.json for static mode
+        try {
+          const res = await fetch('sessions.json');
+          sessions = await res.json();
+          render();
+        } catch {
+          document.getElementById('content').innerHTML =
+            '<div class="empty-state">Could not load sessions. Run <code>node server.js</code></div>';
+        }
+      } finally {
+        btn.classList.remove('loading');
+        btn.textContent = 'Refresh';
+      }
+    }
+
+    // ── Delete session ──
+
+    async function deleteSession(project, id, el) {
+      // Two-click confirm
+      if (pendingConfirm !== id) {
+        // Reset any previous confirm
+        document.querySelectorAll('.delete-btn.confirm').forEach(b => {
+          b.classList.remove('confirm');
+          b.textContent = 'delete';
+        });
+        pendingConfirm = id;
+        el.classList.add('confirm');
+        el.textContent = 'confirm?';
+        return;
+      }
+
+      // Actually delete
+      pendingConfirm = null;
+      const sessionEl = el.closest('.session');
+      sessionEl.classList.add('deleting');
+
+      try {
+        const res = await fetch(
+          `${API}/api/session/${encodeURIComponent(project)}/${encodeURIComponent(id)}`,
+          { method: 'DELETE' }
+        );
+        const data = await res.json();
+        if (data.deleted) {
+          sessions = sessions.filter(s => !(s.id === id && s.project === project));
+          showToast('Session deleted');
+          render();
+        } else {
+          showToast('Session not found', true);
+          sessionEl.classList.remove('deleting');
+        }
+      } catch (err) {
+        showToast('Delete failed', true);
+        sessionEl.classList.remove('deleting');
+      }
+    }
+
+    // ── Toast ──
+
+    function showToast(msg, isError = false) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.className = 'toast show' + (isError ? ' error' : '');
+      setTimeout(() => toast.className = 'toast', 2000);
+    }
+
+    // ── Resume session ──
+
+    async function resumeSession(project, id, btnEl) {
+      const session = sessions.find(s => s.id === id && s.project === project);
+      const dir = session?.dir || project.replace(/^-/, '/').replace(/-/g, '/');
+      const cmd = `cd ${dir} && claude --resume ${id}`;
+      try {
+        await navigator.clipboard.writeText(cmd);
+        if (btnEl) {
+          btnEl.classList.add('copied');
+          btnEl.textContent = 'copied!';
+          setTimeout(() => {
+            btnEl.classList.remove('copied');
+            btnEl.textContent = 'resume';
+          }, 2000);
+        }
+        showToast('Command copied — paste in terminal');
+      } catch {
+        // Fallback: prompt
+        prompt('Copy this command:', cmd);
+      }
+    }
+
+    // ── Detail view ──
+
+    async function openDetail(project, id) {
+      const overlay = document.getElementById('detailOverlay');
+      const panel = document.getElementById('detailPanel');
+      const info = document.getElementById('detailInfo');
+      const msgContainer = document.getElementById('detailMessages');
+
+      // Find session metadata
+      const session = sessions.find(s => s.id === id && s.project === project);
+
+      info.innerHTML = `
+        <span class="project">${projectName(project)}</span>
+        <span>${session ? formatTime(session.started) : ''}</span>
+        <span>${session ? formatDuration(session.durationMinutes || 0) : ''}</span>
+        <span>${session ? (session.messageCount || 0) + ' msgs' : ''}</span>
+      `;
+
+      msgContainer.innerHTML = '<div class="detail-loading"><div class="spinner"></div></div>';
+
+      // Wire resume button for this session
+      const resumeBtn = document.getElementById('resumeDetailBtn');
+      resumeBtn.onclick = () => resumeSession(project, id, resumeBtn);
+
+      overlay.classList.add('show');
+      panel.classList.add('show');
+      document.body.style.overflow = 'hidden';
+
+      try {
+        const res = await fetch(`${API}/api/session/${encodeURIComponent(project)}/${encodeURIComponent(id)}`);
+        const messages = await res.json();
+
+        if (messages.length === 0) {
+          msgContainer.innerHTML = '<div class="detail-loading">No messages in this session.</div>';
+          return;
+        }
+
+        msgContainer.innerHTML = messages.map(m => {
+          const text = (m.text || '').trim();
+          if (!text) return '';
+          return `
+            <div class="msg ${m.role}">
+              <div class="msg-header">
+                <span class="msg-role">${m.role === 'user' ? 'You' : 'Claude'}</span>
+                ${m.timestamp ? `<span class="msg-time">${formatTime(m.timestamp)}</span>` : ''}
+              </div>
+              <div class="msg-text">${escapeHtml(text)}</div>
+              ${m.toolCalls ? `
+                <div class="tool-calls">
+                  ${m.toolCalls.map(t => `<span class="tool-call">${escapeHtml(t.name)}</span>`).join('')}
+                </div>
+              ` : ''}
+            </div>
+          `;
+        }).join('');
+
+        msgContainer.scrollTop = 0;
+      } catch (err) {
+        msgContainer.innerHTML = '<div class="detail-loading">Failed to load conversation.</div>';
+      }
+    }
+
+    function closeDetail() {
+      document.getElementById('detailOverlay').classList.remove('show');
+      document.getElementById('detailPanel').classList.remove('show');
+      document.body.style.overflow = '';
+    }
+
+    // Close on Escape
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') closeDetail();
     });
 
     // ── Controls ──
@@ -376,13 +689,23 @@
       render();
     });
 
+    // Reset confirm on click outside
+    document.addEventListener('click', e => {
+      if (!e.target.classList.contains('delete-btn') && pendingConfirm) {
+        pendingConfirm = null;
+        document.querySelectorAll('.delete-btn.confirm').forEach(b => {
+          b.classList.remove('confirm');
+          b.textContent = 'delete';
+        });
+      }
+    });
+
     // ── Rendering ──
 
     function filterByRange(sessions) {
       const now = new Date();
       return sessions.filter(s => {
-        const d = new Date(s.started);
-        const diffDays = (now - d) / 86400000;
+        const diffDays = (now - new Date(s.started)) / 86400000;
         if (currentRange === 'week') return diffDays <= 7;
         if (currentRange === 'month') return diffDays <= 30;
         return true;
@@ -398,8 +721,7 @@
     }
 
     function formatTime(iso) {
-      const d = new Date(iso);
-      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
 
     function formatDate(iso) {
@@ -422,8 +744,8 @@
 
     function projectName(p) {
       return p
-        .replace(/^-Users-soren-code-/, '')
-        .replace(/^-Users-soren-/, '~/')
+        .replace(/^-Users-[^-]+-code-/, '')
+        .replace(/^-Users-[^-]+-/, '~/')
         .replace(/-/g, '/');
     }
 
@@ -444,7 +766,6 @@
         <div class="stat"><div class="label">Projects</div><div class="value purple">${projects}</div></div>
       `;
 
-      // Heatmap (last 30 days)
       renderHeatmap(sessions);
 
       // Group by date
@@ -473,19 +794,23 @@
           </div>
           <div class="session-list">
             ${items.map(s => `
-              <div class="session">
+              <div class="session" data-id="${s.id}" data-project="${s.project}">
                 <div class="session-main">
                   <div class="session-prompt">${escapeHtml(s.firstMessage || 'No message')}</div>
                   <div class="session-meta">
                     <span class="project">${projectName(s.project)}</span>
                     <span class="time">${formatTime(s.started)}</span>
-                    <span class="duration">⏱ ${formatDuration(s.durationMinutes || 0)}</span>
+                    <span class="duration">${formatDuration(s.durationMinutes || 0)}</span>
                     <span class="msgs">${s.messageCount || 0} msgs</span>
                   </div>
                 </div>
                 <div class="session-right">
                   <div class="duration-bar">
                     <div class="fill" style="width: ${Math.max(5, ((s.durationMinutes || 0) / maxDuration) * 100)}%"></div>
+                  </div>
+                  <div class="session-actions">
+                    <button class="action-btn resume" data-action="resume" data-project="${s.project}" data-id="${s.id}">resume</button>
+                    <button class="action-btn delete" data-action="delete" data-project="${s.project}" data-id="${s.id}">delete</button>
                   </div>
                 </div>
               </div>
@@ -528,6 +853,37 @@
       div.textContent = str;
       return div.innerHTML;
     }
+
+    // ── Event delegation for session clicks ──
+    document.getElementById('content').addEventListener('click', e => {
+      // Handle resume button
+      const resumeBtn = e.target.closest('[data-action="resume"]');
+      if (resumeBtn) {
+        e.stopPropagation();
+        const { project, id } = resumeBtn.dataset;
+        resumeSession(project, id, resumeBtn);
+        return;
+      }
+
+      // Handle delete button
+      const deleteBtn = e.target.closest('[data-action="delete"]');
+      if (deleteBtn) {
+        e.stopPropagation();
+        const { project, id } = deleteBtn.dataset;
+        deleteSession(project, id, deleteBtn);
+        return;
+      }
+
+      // Handle session click -> open detail
+      const sessionEl = e.target.closest('.session[data-id]');
+      if (sessionEl) {
+        const { project, id } = sessionEl.dataset;
+        openDetail(project, id);
+      }
+    });
+
+    // ── Init ──
+    loadSessions();
   </script>
 </body>
 </html>
