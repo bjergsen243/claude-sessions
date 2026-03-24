@@ -1,10 +1,11 @@
 {
   "name": "claude-sessions",
-  "version": "1.0.0",
-  "description": "Visual dashboard for Claude Code session history",
+  "version": "1.1.0",
+  "description": "Visual dashboard for Claude Code session history — browse, search, resume, and manage your sessions",
   "scripts": {
     "start": "node server.js",
-    "scan": "node scan.js > sessions.json",
-    "dev": "node server.js & sleep 1 && open http://localhost:3456"
-  }
+    "scan": "node scan.js > sessions.json"
+  },
+  "keywords": ["claude", "claude-code", "dashboard", "session-viewer"],
+  "license": "MIT"
 }

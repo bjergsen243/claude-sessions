@@ -1,8 +1,11 @@
 #!/usr/bin/env node
-// Local server for Claude Sessions dashboard
-// - Auto-scans ~/.claude/projects/ on each request (fast, no manual step)
-// - DELETE /api/session/:project/:id removes session files
-// Usage: node server.js [port]
+// Claude Sessions Dashboard — Local server
+// Auto-scans Claude Code session data and serves the dashboard UI.
+//
+// Config via environment variables or .env file:
+//   PORT              — server port (default: 3456)
+//   CLAUDE_CONFIG_DIR — path to .claude directory (default: ~/.claude)
+//   READONLY          — disable delete (default: false)
 
 const http = require('http');
 const fs = require('fs');
@@ -10,24 +13,54 @@ const path = require('path');
 const os = require('os');
 const readline = require('readline');
 
-const PORT = parseInt(process.argv[2] || '3456', 10);
+// ── Load .env file if present ───────────────────────────────────────────────
+
+const envPath = path.join(__dirname, '.env');
+if (fs.existsSync(envPath)) {
+  for (const line of fs.readFileSync(envPath, 'utf8').split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const eq = trimmed.indexOf('=');
+    if (eq === -1) continue;
+    const key = trimmed.slice(0, eq).trim();
+    const val = trimmed.slice(eq + 1).trim();
+    if (val && !process.env[key]) process.env[key] = val;
+  }
+}
+
+// ── Config ──────────────────────────────────────────────────────────────────
+
+const PORT = parseInt(process.env.PORT || '3456', 10);
 const CLAUDE_DIR = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
 const PROJECTS_DIR = path.join(CLAUDE_DIR, 'projects');
+const READONLY = process.env.READONLY === 'true';
 
-// ── Session scanner ─────────────────────────────────────────────────────────
+// ── Tag stripping ───────────────────────────────────────────────────────────
 
-// Resolve encoded project name (e.g. -Users-soren-code-finan-fo-ledger)
-// back to real filesystem path (/Users/soren/code/finan/fo-ledger).
-// Can't just replace all dashes — folder names contain dashes too.
-// Strategy: greedily build the path by checking which directories exist.
+function stripTags(text) {
+  let t = text;
+  let prev;
+  do {
+    prev = t;
+    t = t.replace(/<[a-z_:-]+(?:\s[^>]*)?>[\s\S]*?<\/[a-z_:-]+>/g, '');
+  } while (t !== prev);
+  return t.replace(/<\/?[a-z_:-]+(?:\s[^>]*)?>/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+// ── Path resolution ─────────────────────────────────────────────────────────
+
+// Claude Code encodes project paths by replacing / with -
+// e.g. /Users/soren/code/finan/fo-ledger -> -Users-soren-code-finan-fo-ledger
+// We can't just replace all dashes because folder names contain dashes too.
+// Strategy: greedily match against existing directories on disk.
 function resolveProjectPath(encoded) {
-  // Remove leading dash, split into segments
   const parts = encoded.replace(/^-/, '').split('-');
   let resolved = '/';
 
   let i = 0;
   while (i < parts.length) {
-    // Try progressively longer dash-joined segments to find an existing dir
     let matched = false;
     for (let end = parts.length; end > i; end--) {
       const candidate = parts.slice(i, end).join('-');
@@ -42,13 +75,14 @@ function resolveProjectPath(encoded) {
       } catch {}
     }
     if (!matched) {
-      // Fallback: just use this segment
       resolved = path.join(resolved, parts[i]);
       i++;
     }
   }
   return resolved;
 }
+
+// ── Session scanner ─────────────────────────────────────────────────────────
 
 function parseSession(filePath, project) {
   return new Promise((resolve) => {
@@ -81,22 +115,18 @@ function parseSession(filePath, project) {
         }
         if (data.type === 'user' && !session.firstMessage) {
           const content = data.message?.content;
+          let text = '';
           if (Array.isArray(content)) {
             for (const block of content) {
               if (block.type === 'text' && block.text) {
-                let text = block.text
-                  .replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, '')
-                  .replace(/<local-command-[\s\S]*?$/g, '')
-                  .trim();
-                if (text.length > 0) {
-                  session.firstMessage = text.slice(0, 120);
-                  break;
-                }
+                text = stripTags(block.text);
+                if (text) break;
               }
             }
           } else if (typeof content === 'string') {
-            session.firstMessage = content.slice(0, 120);
+            text = stripTags(content);
           }
+          if (text) session.firstMessage = text.slice(0, 120);
         }
       } catch {}
     });
@@ -138,78 +168,17 @@ async function scanSessions() {
   return allSessions;
 }
 
-// ── Session deletion ────────────────────────────────────────────────────────
+// ── Read conversation ───────────────────────────────────────────────────────
 
-function deleteSession(project, sessionId) {
-  // Validate: project and sessionId must not contain path traversal
-  if (project.includes('..') || sessionId.includes('..')) return false;
-  if (project.includes('/') || sessionId.includes('/')) return false;
-
-  const projectDir = path.join(PROJECTS_DIR, project);
-  if (!fs.existsSync(projectDir)) return false;
-
-  let deleted = false;
-
-  // Remove .jsonl file
-  const jsonlFile = path.join(projectDir, `${sessionId}.jsonl`);
-  if (fs.existsSync(jsonlFile)) {
-    fs.unlinkSync(jsonlFile);
-    deleted = true;
-  }
-
-  // Remove companion directory (if exists)
-  const sessionDir = path.join(projectDir, sessionId);
-  if (fs.existsSync(sessionDir) && fs.statSync(sessionDir).isDirectory()) {
-    fs.rmSync(sessionDir, { recursive: true });
-    deleted = true;
-  }
-
-  return deleted;
-}
-
-// ── HTTP server ─────────────────────────────────────────────────────────────
-
-const server = http.createServer(async (req, res) => {
-  // CORS
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  if (req.method === 'OPTIONS') {
-    res.writeHead(204);
-    res.end();
-    return;
-  }
-
-  // GET /api/sessions — scan and return all sessions
-  if (req.method === 'GET' && req.url === '/api/sessions') {
-    try {
-      const sessions = await scanSessions();
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(sessions));
-    } catch (err) {
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: err.message }));
-    }
-    return;
-  }
-
-  // GET /api/session/:project/:id — read full conversation
-  const getMatch = req.url.match(/^\/api\/session\/([^/]+)\/([^/]+)$/);
-  if (req.method === 'GET' && getMatch) {
-    const [, project, sessionId] = getMatch.map(decodeURIComponent);
+function readConversation(project, sessionId) {
+  return new Promise((resolve, reject) => {
     if (project.includes('..') || sessionId.includes('..') ||
         project.includes('/') || sessionId.includes('/')) {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Invalid path' }));
-      return;
+      return reject(new Error('Invalid path'));
     }
+
     const filePath = path.join(PROJECTS_DIR, project, `${sessionId}.jsonl`);
-    if (!fs.existsSync(filePath)) {
-      res.writeHead(404, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Not found' }));
-      return;
-    }
+    if (!fs.existsSync(filePath)) return reject(new Error('Not found'));
 
     const messages = [];
     const rl = readline.createInterface({
@@ -229,39 +198,16 @@ const server = http.createServer(async (req, res) => {
         if (Array.isArray(content)) {
           for (const block of content) {
             if (block.type === 'text' && block.text) {
-              // Strip all XML-like tags (system, internal, claude metadata)
-              // Loop to handle nested tags — inner tags get stripped first,
-              // then outer tags become matchable on next pass
-              let t = block.text;
-              let prev;
-              do {
-                prev = t;
-                t = t.replace(/<[a-z_:-]+(?:\s[^>]*)?>[\s\S]*?<\/[a-z_:-]+>/g, '');
-              } while (t !== prev);
-              // Clean up any remaining orphan tags
-              t = t.replace(/<\/?[a-z_:-]+(?:\s[^>]*)?>/g, '')
-                .replace(/\n{3,}/g, '\n\n')
-                .trim();
+              const t = stripTags(block.text);
               if (t) text += (text ? '\n' : '') + t;
             } else if (block.type === 'tool_use') {
               toolCalls.push({ name: block.name, id: block.id });
-            } else if (block.type === 'tool_result') {
-              // skip tool results in the view
             }
           }
         } else if (typeof content === 'string') {
-          let t = content;
-          let prev;
-          do {
-            prev = t;
-            t = t.replace(/<[a-z_:-]+(?:\s[^>]*)?>[\s\S]*?<\/[a-z_:-]+>/g, '');
-          } while (t !== prev);
-          text = t.replace(/<\/?[a-z_:-]+(?:\s[^>]*)?>/g, '')
-            .replace(/\n{3,}/g, '\n\n')
-            .trim();
+          text = stripTags(content);
         }
 
-        // Skip messages with no visible content
         if (!text) return;
 
         messages.push({
@@ -273,30 +219,98 @@ const server = http.createServer(async (req, res) => {
       } catch {}
     });
 
-    rl.on('close', () => {
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(messages));
-    });
+    rl.on('close', () => resolve(messages));
+    rl.on('error', reject);
+  });
+}
 
-    rl.on('error', () => {
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Read error' }));
-    });
+// ── Session deletion ────────────────────────────────────────────────────────
+
+function deleteSession(project, sessionId) {
+  if (READONLY) return false;
+  if (project.includes('..') || sessionId.includes('..')) return false;
+  if (project.includes('/') || sessionId.includes('/')) return false;
+
+  const projectDir = path.join(PROJECTS_DIR, project);
+  if (!fs.existsSync(projectDir)) return false;
+
+  let deleted = false;
+
+  const jsonlFile = path.join(projectDir, `${sessionId}.jsonl`);
+  if (fs.existsSync(jsonlFile)) {
+    fs.unlinkSync(jsonlFile);
+    deleted = true;
+  }
+
+  const sessionDir = path.join(projectDir, sessionId);
+  if (fs.existsSync(sessionDir) && fs.statSync(sessionDir).isDirectory()) {
+    fs.rmSync(sessionDir, { recursive: true });
+    deleted = true;
+  }
+
+  return deleted;
+}
+
+// ── HTTP server ─────────────────────────────────────────────────────────────
+
+const server = http.createServer(async (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204);
+    res.end();
     return;
   }
 
-  // DELETE /api/session/:project/:id — delete a session
+  const json = (code, data) => {
+    res.writeHead(code, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(data));
+  };
+
+  // GET /api/sessions
+  if (req.method === 'GET' && req.url === '/api/sessions') {
+    try {
+      json(200, await scanSessions());
+    } catch (err) {
+      json(500, { error: err.message });
+    }
+    return;
+  }
+
+  // GET /api/session/:project/:id
+  const getMatch = req.url.match(/^\/api\/session\/([^/]+)\/([^/]+)$/);
+  if (req.method === 'GET' && getMatch) {
+    try {
+      const messages = await readConversation(
+        decodeURIComponent(getMatch[1]),
+        decodeURIComponent(getMatch[2])
+      );
+      json(200, messages);
+    } catch (err) {
+      json(err.message === 'Not found' ? 404 : 400, { error: err.message });
+    }
+    return;
+  }
+
+  // DELETE /api/session/:project/:id
   const deleteMatch = req.url.match(/^\/api\/session\/([^/]+)\/([^/]+)$/);
   if (req.method === 'DELETE' && deleteMatch) {
-    const [, project, sessionId] = deleteMatch;
-    const ok = deleteSession(decodeURIComponent(project), decodeURIComponent(sessionId));
-    res.writeHead(ok ? 200 : 404, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ deleted: ok }));
+    if (READONLY) {
+      json(403, { error: 'Server is in read-only mode' });
+      return;
+    }
+    const ok = deleteSession(
+      decodeURIComponent(deleteMatch[1]),
+      decodeURIComponent(deleteMatch[2])
+    );
+    json(ok ? 200 : 404, { deleted: ok });
     return;
   }
 
   // Serve static files
-  let filePath = req.url === '/' ? '/index.html' : req.url;
+  let filePath = req.url === '/' ? '/index.html' : req.url.split('?')[0];
   filePath = path.join(__dirname, filePath);
 
   const ext = path.extname(filePath);
@@ -305,6 +319,8 @@ const server = http.createServer(async (req, res) => {
     '.js': 'application/javascript',
     '.css': 'text/css',
     '.json': 'application/json',
+    '.png': 'image/png',
+    '.svg': 'image/svg+xml',
   };
 
   if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
@@ -317,7 +333,8 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`\x1b[1;36m󰊠 Claude Sessions\x1b[0m running at \x1b[1mhttp://localhost:${PORT}\x1b[0m`);
+  console.log(`\n  Claude Sessions running at http://localhost:${PORT}`);
   console.log(`  Scanning: ${PROJECTS_DIR}`);
+  if (READONLY) console.log('  Mode: read-only (delete disabled)');
   console.log(`  Press Ctrl+C to stop\n`);
 });

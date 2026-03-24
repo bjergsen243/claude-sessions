@@ -1,0 +1,12 @@
+services:
+  claude-sessions:
+    build: .
+    ports:
+      - "${PORT:-3456}:3456"
+    volumes:
+      # Mount your Claude Code config directory (read-only by default)
+      - ${CLAUDE_CONFIG_DIR:-~/.claude}:/data/.claude:ro
+    environment:
+      - CLAUDE_CONFIG_DIR=/data/.claude
+      - PORT=3456
+      - READONLY=${READONLY:-false}
