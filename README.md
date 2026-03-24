@@ -4,7 +4,13 @@ Visual dashboard for [Claude Code](https://docs.anthropic.com/en/docs/claude-cod
 
 Browse, search, read, resume, and delete your Claude Code sessions from a clean web UI.
 
-![Dashboard](https://img.shields.io/badge/zero_dependencies-node.js-green)
+![zero dependencies](https://img.shields.io/badge/zero_dependencies-node.js-green) ![license](https://img.shields.io/badge/license-MIT-blue)
+
+## Preview
+
+<p align="center">
+  <img src="assets/preview.svg" alt="Claude Sessions Dashboard" width="900"/>
+</p>
 
 ## Features
 
