@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Claude Sessions</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --border: #30363d;
+      --text: #e6edf3;
+      --text-dim: #7d8590;
+      --cyan: #58a6ff;
+      --blue: #388bfd;
+      --yellow: #d29922;
+      --green: #3fb950;
+      --orange: #db6d28;
+      --red: #f85149;
+      --purple: #a371f7;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 24px;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .header h1 {
+      font-size: 20px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .header h1 .icon { color: var(--cyan); }
+
+    .controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .controls button {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      padding: 6px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 12px;
+      transition: all 0.15s;
+    }
+
+    .controls button:hover { color: var(--text); border-color: var(--text-dim); }
+    .controls button.active { color: var(--cyan); border-color: var(--cyan); background: rgba(88,166,255,0.1); }
+
+    .stats-bar {
+      display: flex;
+      gap: 24px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+
+    .stat {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 20px;
+      min-width: 140px;
+    }
+
+    .stat .label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+    .stat .value { font-size: 22px; font-weight: 700; margin-top: 4px; }
+    .stat .value.cyan { color: var(--cyan); }
+    .stat .value.green { color: var(--green); }
+    .stat .value.yellow { color: var(--yellow); }
+    .stat .value.purple { color: var(--purple); }
+
+    .search-bar {
+      margin-bottom: 20px;
+    }
+
+    .search-bar input {
+      width: 100%;
+      max-width: 400px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 13px;
+      outline: none;
+    }
+
+    .search-bar input:focus { border-color: var(--cyan); }
+    .search-bar input::placeholder { color: var(--text-dim); }
+
+    .day-group {
+      margin-bottom: 24px;
+    }
+
+    .day-header {
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-bottom: 8px;
+      padding-left: 4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .day-header .count {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1px 8px;
+      font-size: 11px;
+    }
+
+    .session-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .session {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      transition: border-color 0.15s;
+      cursor: default;
+    }
+
+    .session:hover { border-color: var(--text-dim); }
+
+    .session-main {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+    }
+
+    .session-prompt {
+      font-size: 13px;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .session-meta {
+      display: flex;
+      gap: 16px;
+      font-size: 11px;
+      color: var(--text-dim);
+      align-items: center;
+    }
+
+    .session-meta .project {
+      color: var(--cyan);
+      font-weight: 500;
+    }
+
+    .session-meta .time { color: var(--text-dim); }
+
+    .session-meta .duration {
+      color: var(--yellow);
+    }
+
+    .session-meta .msgs {
+      color: var(--green);
+    }
+
+    .session-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .duration-bar {
+      width: 60px;
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .duration-bar .fill {
+      height: 100%;
+      border-radius: 2px;
+      background: var(--cyan);
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 48px;
+      color: var(--text-dim);
+      font-size: 14px;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 48px;
+      color: var(--text-dim);
+    }
+
+    .loading .spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 2px solid var(--border);
+      border-top-color: var(--cyan);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 12px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: 12px;
+      padding: 48px;
+      text-align: center;
+      color: var(--text-dim);
+      margin-bottom: 24px;
+      transition: all 0.2s;
+    }
+
+    .drop-zone.active {
+      border-color: var(--cyan);
+      background: rgba(88,166,255,0.05);
+      color: var(--cyan);
+    }
+
+    .drop-zone p { margin-bottom: 12px; }
+
+    .drop-zone .browse-btn {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--cyan);
+      padding: 8px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 13px;
+    }
+
+    .drop-zone .browse-btn:hover { border-color: var(--cyan); }
+
+    #fileInput { display: none; }
+
+    .heatmap {
+      margin-bottom: 24px;
+    }
+
+    .heatmap-title {
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-bottom: 8px;
+    }
+
+    .heatmap-grid {
+      display: flex;
+      gap: 3px;
+      flex-wrap: wrap;
+    }
+
+    .heatmap-cell {
+      width: 14px;
+      height: 14px;
+      border-radius: 2px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+    }
+
+    .heatmap-cell.l1 { background: rgba(88,166,255,0.2); border-color: rgba(88,166,255,0.3); }
+    .heatmap-cell.l2 { background: rgba(88,166,255,0.4); border-color: rgba(88,166,255,0.5); }
+    .heatmap-cell.l3 { background: rgba(88,166,255,0.6); border-color: rgba(88,166,255,0.7); }
+    .heatmap-cell.l4 { background: rgba(88,166,255,0.85); border-color: var(--cyan); }
+
+    .heatmap-cell[title] { cursor: help; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1><span class="icon">󰊠</span> Claude Sessions</h1>
+    <div class="controls">
+      <button class="active" data-range="week">Week</button>
+      <button data-range="month">Month</button>
+      <button data-range="all">All</button>
+    </div>
+  </div>
+
+  <div class="stats-bar" id="stats"></div>
+
+  <div class="heatmap" id="heatmap"></div>
+
+  <div class="search-bar">
+    <input type="text" id="search" placeholder="Search sessions..." />
+  </div>
+
+  <div id="content">
+    <div class="drop-zone" id="dropZone">
+      <p>Load your session data</p>
+      <p style="font-size: 12px; margin-bottom: 16px;">
+        Run the scan script to generate <code>sessions.json</code>, then open this page.
+      </p>
+      <p style="font-size: 12px; color: var(--text-dim);">
+        <code>node scan.js > sessions.json</code>
+      </p>
+      <br/>
+      <button class="browse-btn" onclick="document.getElementById('fileInput').click()">Browse File</button>
+      <input type="file" id="fileInput" accept=".json" />
+    </div>
+  </div>
+
+  <script>
+    let sessions = [];
+    let currentRange = 'week';
+    let searchQuery = '';
+
+    // ── Data loading ──
+
+    // Try auto-loading sessions.json from same directory
+    fetch('sessions.json')
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(data => { sessions = data; render(); })
+      .catch(() => {}); // Show drop zone if not found
+
+    document.getElementById('fileInput').addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        sessions = JSON.parse(ev.target.result);
+        render();
+      };
+      reader.readAsText(file);
+    });
+
+    // ── Controls ──
+
+    document.querySelectorAll('.controls button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.controls button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentRange = btn.dataset.range;
+        render();
+      });
+    });
+
+    document.getElementById('search').addEventListener('input', e => {
+      searchQuery = e.target.value.toLowerCase();
+      render();
+    });
+
+    // ── Rendering ──
+
+    function filterByRange(sessions) {
+      const now = new Date();
+      return sessions.filter(s => {
+        const d = new Date(s.started);
+        const diffDays = (now - d) / 86400000;
+        if (currentRange === 'week') return diffDays <= 7;
+        if (currentRange === 'month') return diffDays <= 30;
+        return true;
+      });
+    }
+
+    function filterBySearch(sessions) {
+      if (!searchQuery) return sessions;
+      return sessions.filter(s =>
+        (s.firstMessage || '').toLowerCase().includes(searchQuery) ||
+        (s.project || '').toLowerCase().includes(searchQuery)
+      );
+    }
+
+    function formatTime(iso) {
+      const d = new Date(iso);
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function formatDate(iso) {
+      const d = new Date(iso);
+      const now = new Date();
+      const diff = Math.floor((now - d) / 86400000);
+      if (diff === 0) return 'Today';
+      if (diff === 1) return 'Yesterday';
+      if (diff < 7) return d.toLocaleDateString([], { weekday: 'long' });
+      return d.toLocaleDateString([], { month: 'short', day: 'numeric', year: now.getFullYear() !== d.getFullYear() ? 'numeric' : undefined });
+    }
+
+    function formatDuration(mins) {
+      if (mins < 1) return '<1m';
+      if (mins < 60) return `${Math.round(mins)}m`;
+      const h = Math.floor(mins / 60);
+      const m = Math.round(mins % 60);
+      return `${h}h${m > 0 ? m + 'm' : ''}`;
+    }
+
+    function projectName(p) {
+      return p
+        .replace(/^-Users-soren-code-/, '')
+        .replace(/^-Users-soren-/, '~/')
+        .replace(/-/g, '/');
+    }
+
+    function render() {
+      let filtered = filterByRange(sessions);
+      filtered = filterBySearch(filtered);
+
+      // Stats
+      const totalSessions = filtered.length;
+      const totalMessages = filtered.reduce((sum, s) => sum + (s.messageCount || 0), 0);
+      const totalMinutes = filtered.reduce((sum, s) => sum + (s.durationMinutes || 0), 0);
+      const projects = new Set(filtered.map(s => s.project)).size;
+
+      document.getElementById('stats').innerHTML = `
+        <div class="stat"><div class="label">Sessions</div><div class="value cyan">${totalSessions}</div></div>
+        <div class="stat"><div class="label">Messages</div><div class="value green">${totalMessages}</div></div>
+        <div class="stat"><div class="label">Time</div><div class="value yellow">${formatDuration(totalMinutes)}</div></div>
+        <div class="stat"><div class="label">Projects</div><div class="value purple">${projects}</div></div>
+      `;
+
+      // Heatmap (last 30 days)
+      renderHeatmap(sessions);
+
+      // Group by date
+      const groups = {};
+      filtered.sort((a, b) => new Date(b.started) - new Date(a.started));
+      filtered.forEach(s => {
+        const key = new Date(s.started).toDateString();
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(s);
+      });
+
+      const content = document.getElementById('content');
+
+      if (filtered.length === 0) {
+        content.innerHTML = '<div class="empty-state">No sessions found for this period.</div>';
+        return;
+      }
+
+      const maxDuration = Math.max(...filtered.map(s => s.durationMinutes || 0), 1);
+
+      content.innerHTML = Object.entries(groups).map(([date, items]) => `
+        <div class="day-group">
+          <div class="day-header">
+            ${formatDate(items[0].started)}
+            <span class="count">${items.length}</span>
+          </div>
+          <div class="session-list">
+            ${items.map(s => `
+              <div class="session">
+                <div class="session-main">
+                  <div class="session-prompt">${escapeHtml(s.firstMessage || 'No message')}</div>
+                  <div class="session-meta">
+                    <span class="project">${projectName(s.project)}</span>
+                    <span class="time">${formatTime(s.started)}</span>
+                    <span class="duration">⏱ ${formatDuration(s.durationMinutes || 0)}</span>
+                    <span class="msgs">${s.messageCount || 0} msgs</span>
+                  </div>
+                </div>
+                <div class="session-right">
+                  <div class="duration-bar">
+                    <div class="fill" style="width: ${Math.max(5, ((s.durationMinutes || 0) / maxDuration) * 100)}%"></div>
+                  </div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderHeatmap(allSessions) {
+      const container = document.getElementById('heatmap');
+      const now = new Date();
+      const days = 30;
+      const counts = {};
+
+      allSessions.forEach(s => {
+        const key = new Date(s.started).toDateString();
+        counts[key] = (counts[key] || 0) + 1;
+      });
+
+      let cells = '';
+      for (let i = days - 1; i >= 0; i--) {
+        const d = new Date(now);
+        d.setDate(d.getDate() - i);
+        const key = d.toDateString();
+        const count = counts[key] || 0;
+        const level = count === 0 ? '' : count <= 2 ? 'l1' : count <= 5 ? 'l2' : count <= 10 ? 'l3' : 'l4';
+        const label = d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+        cells += `<div class="heatmap-cell ${level}" title="${label}: ${count} sessions"></div>`;
+      }
+
+      container.innerHTML = `
+        <div class="heatmap-title">Last 30 days</div>
+        <div class="heatmap-grid">${cells}</div>
+      `;
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+  </script>
+</body>
+</html>

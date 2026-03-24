@@ -1,0 +1,10 @@
+{
+  "name": "claude-sessions",
+  "version": "1.0.0",
+  "description": "Visual dashboard for Claude Code session history",
+  "scripts": {
+    "scan": "node scan.js > sessions.json",
+    "dev": "node scan.js > sessions.json && npx serve .",
+    "open": "node scan.js > sessions.json && open index.html"
+  }
+}
