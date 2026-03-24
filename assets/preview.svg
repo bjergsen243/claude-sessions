@@ -95,11 +95,11 @@
 
   <!-- Session 1 -->
   <rect x="28" y="274" width="844" height="56" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1"/>
-  <text x="44" y="296" fill="#e6edf3" font-size="12">can you help me improve the terminal</text>
-  <text x="44" y="316" fill="#58a6ff" font-size="10" font-weight="500">finan</text>
-  <text x="100" y="316" fill="#7d8590" font-size="10">09:46 AM</text>
-  <text x="168" y="316" fill="#d29922" font-size="10">2h14m</text>
-  <text x="220" y="316" fill="#3fb950" font-size="10">72 msgs</text>
+  <text x="44" y="296" fill="#e6edf3" font-size="12">teach the mass-produced robot army to love</text>
+  <text x="44" y="316" fill="#58a6ff" font-size="10" font-weight="500">skynet/core</text>
+  <text x="118" y="316" fill="#7d8590" font-size="10">09:46 AM</text>
+  <text x="186" y="316" fill="#d29922" font-size="10">2h14m</text>
+  <text x="238" y="316" fill="#3fb950" font-size="10">72 msgs</text>
   <!-- Duration bar -->
   <rect x="740" y="292" width="60" height="4" rx="2" fill="#30363d"/>
   <rect x="740" y="292" width="52" height="4" rx="2" fill="#58a6ff"/>
@@ -109,11 +109,11 @@
 
   <!-- Session 2 -->
   <rect x="28" y="336" width="844" height="56" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1"/>
-  <text x="44" y="358" fill="#e6edf3" font-size="12">please review the reimbursement feature again</text>
-  <text x="44" y="378" fill="#58a6ff" font-size="10" font-weight="500">finan/fo-banking</text>
-  <text x="152" y="378" fill="#7d8590" font-size="10">07:14 AM</text>
-  <text x="220" y="378" fill="#d29922" font-size="10">1h56m</text>
-  <text x="272" y="378" fill="#3fb950" font-size="10">160 msgs</text>
+  <text x="44" y="358" fill="#e6edf3" font-size="12">why is the pizza tracker sending launch codes</text>
+  <text x="44" y="378" fill="#58a6ff" font-size="10" font-weight="500">skynet/pizza-defense</text>
+  <text x="176" y="378" fill="#7d8590" font-size="10">07:14 AM</text>
+  <text x="244" y="378" fill="#d29922" font-size="10">1h56m</text>
+  <text x="296" y="378" fill="#3fb950" font-size="10">160 msgs</text>
   <rect x="740" y="354" width="60" height="4" rx="2" fill="#30363d"/>
   <rect x="740" y="354" width="45" height="4" rx="2" fill="#58a6ff"/>
   <rect x="810" y="348" width="52" height="20" rx="4" fill="transparent" stroke="transparent" stroke-width="1"/>
@@ -126,31 +126,31 @@
 
   <!-- Session 3 -->
   <rect x="28" y="430" width="844" height="56" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1"/>
-  <text x="44" y="452" fill="#e6edf3" font-size="12">implement spending limit request approval flow</text>
-  <text x="44" y="472" fill="#58a6ff" font-size="10" font-weight="500">finan/fo-document</text>
-  <text x="158" y="472" fill="#7d8590" font-size="10">03:22 PM</text>
-  <text x="226" y="472" fill="#d29922" font-size="10">45m</text>
-  <text x="260" y="472" fill="#3fb950" font-size="10">38 msgs</text>
+  <text x="44" y="452" fill="#e6edf3" font-size="12">refactor the spaghetti monster into microservices</text>
+  <text x="44" y="472" fill="#58a6ff" font-size="10" font-weight="500">acme/noodle-engine</text>
+  <text x="166" y="472" fill="#7d8590" font-size="10">03:22 PM</text>
+  <text x="234" y="472" fill="#d29922" font-size="10">45m</text>
+  <text x="268" y="472" fill="#3fb950" font-size="10">38 msgs</text>
   <rect x="740" y="448" width="60" height="4" rx="2" fill="#30363d"/>
   <rect x="740" y="448" width="20" height="4" rx="2" fill="#58a6ff"/>
 
   <!-- Session 4 -->
   <rect x="28" y="492" width="844" height="56" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1"/>
-  <text x="44" y="514" fill="#e6edf3" font-size="12">fix the null pointer exception in ledger sync</text>
-  <text x="44" y="534" fill="#58a6ff" font-size="10" font-weight="500">finan/fo-ledger</text>
-  <text x="144" y="534" fill="#7d8590" font-size="10">10:08 AM</text>
-  <text x="212" y="534" fill="#d29922" font-size="10">12m</text>
-  <text x="244" y="534" fill="#3fb950" font-size="10">14 msgs</text>
+  <text x="44" y="514" fill="#e6edf3" font-size="12">debug why the AI keeps ordering 500 pizzas</text>
+  <text x="44" y="534" fill="#58a6ff" font-size="10" font-weight="500">acme/hungry-bot</text>
+  <text x="152" y="534" fill="#7d8590" font-size="10">10:08 AM</text>
+  <text x="220" y="534" fill="#d29922" font-size="10">12m</text>
+  <text x="252" y="534" fill="#3fb950" font-size="10">14 msgs</text>
   <rect x="740" y="510" width="60" height="4" rx="2" fill="#30363d"/>
   <rect x="740" y="510" width="8" height="4" rx="2" fill="#58a6ff"/>
 
   <!-- Session 5 -->
   <rect x="28" y="554" width="844" height="56" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1"/>
-  <text x="44" y="576" fill="#e6edf3" font-size="12">add webhook retry logic for payment notifications</text>
-  <text x="44" y="596" fill="#58a6ff" font-size="10" font-weight="500">finan/fo-order</text>
-  <text x="138" y="596" fill="#7d8590" font-size="10">08:45 AM</text>
-  <text x="206" y="596" fill="#d29922" font-size="10">1h10m</text>
-  <text x="258" y="596" fill="#3fb950" font-size="10">86 msgs</text>
+  <text x="44" y="576" fill="#e6edf3" font-size="12">make the deploy script less haunted</text>
+  <text x="44" y="596" fill="#58a6ff" font-size="10" font-weight="500">acme/cursed-infra</text>
+  <text x="160" y="596" fill="#7d8590" font-size="10">08:45 AM</text>
+  <text x="228" y="596" fill="#d29922" font-size="10">1h10m</text>
+  <text x="280" y="596" fill="#3fb950" font-size="10">86 msgs</text>
   <rect x="740" y="572" width="60" height="4" rx="2" fill="#30363d"/>
   <rect x="740" y="572" width="32" height="4" rx="2" fill="#58a6ff"/>
 </svg>
