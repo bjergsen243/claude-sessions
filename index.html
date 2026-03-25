@@ -172,9 +172,6 @@
     .session-prompt {
       font-size: 13px;
       color: var(--text);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
     }
 
     .session-meta {
@@ -453,6 +450,74 @@
 
     .toast.show { opacity: 1; transform: translateY(0); }
     .toast.error { border-color: var(--red); color: var(--red); }
+
+    /* ── Rename UI ── */
+
+    .session-prompt {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .session-prompt .prompt-text {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      min-width: 0;
+    }
+
+    .edit-name-btn {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      font-size: 12px;
+      padding: 2px 4px;
+      border-radius: 3px;
+      opacity: 0;
+      transition: opacity 0.15s, color 0.15s;
+      flex-shrink: 0;
+    }
+
+    .session:hover .edit-name-btn,
+    .detail-title:hover .edit-name-btn { opacity: 0.6; }
+    .edit-name-btn:hover { opacity: 1 !important; color: var(--cyan); }
+
+    .rename-input {
+      background: var(--bg);
+      border: 1px solid var(--cyan);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 13px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      outline: none;
+      width: 100%;
+    }
+
+    .detail-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--text);
+      min-width: 0;
+      flex: 1;
+      margin: 0 12px;
+    }
+
+    .detail-title .prompt-text {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .detail-title .edit-name-btn { opacity: 0.6; }
+
+    .custom-name-label {
+      color: var(--cyan);
+      font-weight: 500;
+    }
   </style>
 </head>
 <body>
@@ -483,6 +548,7 @@
   <div class="detail-panel" id="detailPanel">
     <div class="detail-header">
       <button class="back-btn" onclick="closeDetail()">Back</button>
+      <div class="detail-title" id="detailTitle"></div>
       <div class="detail-info" id="detailInfo"></div>
       <button class="resume-detail-btn" id="resumeDetailBtn">Resume</button>
     </div>
@@ -600,6 +666,81 @@
       }
     }
 
+    // ── Rename session ──
+
+    async function renameSession(project, id, newName) {
+      try {
+        const res = await fetch(
+          `${API}/api/session/${encodeURIComponent(project)}/${encodeURIComponent(id)}/name`,
+          { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: newName }) }
+        );
+        if (!res.ok) throw new Error('Failed to rename');
+        const session = sessions.find(s => s.id === id && s.project === project);
+        if (session) session.customName = newName;
+        showToast('Renamed');
+        render();
+        return true;
+      } catch (err) {
+        showToast('Rename failed', true);
+        return false;
+      }
+    }
+
+    async function clearSessionName(project, id) {
+      try {
+        await fetch(
+          `${API}/api/session/${encodeURIComponent(project)}/${encodeURIComponent(id)}/name`,
+          { method: 'DELETE' }
+        );
+        const session = sessions.find(s => s.id === id && s.project === project);
+        if (session) delete session.customName;
+        showToast('Name cleared');
+        render();
+      } catch {
+        showToast('Failed to clear name', true);
+      }
+    }
+
+    function startRename(project, id, currentName, containerEl) {
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'rename-input';
+      input.value = currentName;
+      input.placeholder = 'Enter a name...';
+
+      containerEl.innerHTML = '';
+      containerEl.appendChild(input);
+      input.focus();
+      input.select();
+
+      const finish = async (save) => {
+        input.removeEventListener('keydown', onKey);
+        input.removeEventListener('blur', onBlur);
+        if (save) {
+          const name = input.value.trim();
+          if (name && name !== currentName) {
+            await renameSession(project, id, name);
+          } else if (!name) {
+            await clearSessionName(project, id);
+          } else {
+            render();
+          }
+        } else {
+          render();
+        }
+      };
+
+      const onKey = (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); finish(true); }
+        if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+      };
+
+      const onBlur = () => finish(true);
+
+      input.addEventListener('keydown', onKey);
+      input.addEventListener('blur', onBlur);
+    }
+
     // ── Detail view ──
 
     async function openDetail(project, id) {
@@ -610,6 +751,17 @@
 
       // Find session metadata
       const session = sessions.find(s => s.id === id && s.project === project);
+
+      const titleEl = document.getElementById('detailTitle');
+      const displayName = session?.customName || session?.firstMessage || 'No message';
+      titleEl.innerHTML = `
+        <span class="prompt-text ${session?.customName ? 'custom-name-label' : ''}">${escapeHtml(displayName)}</span>
+        <button class="edit-name-btn" title="Rename">&#9998;</button>
+      `;
+      titleEl.querySelector('.edit-name-btn').onclick = (e) => {
+        e.stopPropagation();
+        startRename(project, id, session?.customName || session?.firstMessage || '', titleEl);
+      };
 
       info.innerHTML = `
         <span class="project">${projectName(project)}</span>
@@ -715,6 +867,7 @@
     function filterBySearch(sessions) {
       if (!searchQuery) return sessions;
       return sessions.filter(s =>
+        (s.customName || '').toLowerCase().includes(searchQuery) ||
         (s.firstMessage || '').toLowerCase().includes(searchQuery) ||
         (s.project || '').toLowerCase().includes(searchQuery)
       );
@@ -796,7 +949,10 @@
             ${items.map(s => `
               <div class="session" data-id="${s.id}" data-project="${s.project}">
                 <div class="session-main">
-                  <div class="session-prompt">${escapeHtml(s.firstMessage || 'No message')}</div>
+                  <div class="session-prompt" data-project="${s.project}" data-id="${s.id}">
+                    <span class="prompt-text ${s.customName ? 'custom-name-label' : ''}">${escapeHtml(s.customName || s.firstMessage || 'No message')}</span>
+                    <button class="edit-name-btn" data-action="rename" data-project="${s.project}" data-id="${s.id}" title="Rename">&#9998;</button>
+                  </div>
                   <div class="session-meta">
                     <span class="project">${projectName(s.project)}</span>
                     <span class="time">${formatTime(s.started)}</span>
@@ -856,6 +1012,17 @@
 
     // ── Event delegation for session clicks ──
     document.getElementById('content').addEventListener('click', e => {
+      // Handle rename button
+      const renameBtn = e.target.closest('[data-action="rename"]');
+      if (renameBtn) {
+        e.stopPropagation();
+        const { project, id } = renameBtn.dataset;
+        const session = sessions.find(s => s.id === id && s.project === project);
+        const container = renameBtn.closest('.session-prompt');
+        startRename(project, id, session?.customName || session?.firstMessage || '', container);
+        return;
+      }
+
       // Handle resume button
       const resumeBtn = e.target.closest('[data-action="resume"]');
       if (resumeBtn) {

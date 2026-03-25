@@ -34,6 +34,27 @@ const PORT = parseInt(process.env.PORT || '3456', 10);
 const CLAUDE_DIR = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
 const PROJECTS_DIR = path.join(CLAUDE_DIR, 'projects');
 const READONLY = process.env.READONLY === 'true';
+const METADATA_PATH = path.join(__dirname, 'metadata.json');
+
+// ── Metadata (custom names) ─────────────────────────────────────────────────
+
+let metadata = {};
+
+function loadMetadata() {
+  try {
+    if (fs.existsSync(METADATA_PATH)) {
+      metadata = JSON.parse(fs.readFileSync(METADATA_PATH, 'utf8'));
+    }
+  } catch {
+    metadata = {};
+  }
+}
+
+function saveMetadata() {
+  fs.writeFileSync(METADATA_PATH, JSON.stringify(metadata, null, 2));
+}
+
+loadMetadata();
 
 // ── Tag stripping ───────────────────────────────────────────────────────────
 
@@ -160,7 +181,11 @@ async function scanSessions() {
       jsonlFiles.map(f => parseSession(path.join(projectDir, f), project))
     );
     for (const s of results) {
-      if (s) allSessions.push(s);
+      if (s) {
+        const key = `${s.project}/${s.id}`;
+        if (metadata[key]?.name) s.customName = metadata[key].name;
+        allSessions.push(s);
+      }
     }
   }
 
@@ -248,14 +273,36 @@ function deleteSession(project, sessionId) {
     deleted = true;
   }
 
+  if (deleted) {
+    const key = `${project}/${sessionId}`;
+    if (metadata[key]) {
+      delete metadata[key];
+      saveMetadata();
+    }
+  }
+
   return deleted;
+}
+
+// ── Read request body ────────────────────────────────────────────────────────
+
+function readBody(req) {
+  return new Promise((resolve, reject) => {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', () => {
+      try { resolve(JSON.parse(body)); }
+      catch { reject(new Error('Invalid JSON')); }
+    });
+    req.on('error', reject);
+  });
 }
 
 // ── HTTP server ─────────────────────────────────────────────────────────────
 
 const server = http.createServer(async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
@@ -306,6 +353,50 @@ const server = http.createServer(async (req, res) => {
       decodeURIComponent(deleteMatch[2])
     );
     json(ok ? 200 : 404, { deleted: ok });
+    return;
+  }
+
+  // PUT /api/session/:project/:id/name — rename a session
+  const nameMatch = req.url.match(/^\/api\/session\/([^/]+)\/([^/]+)\/name$/);
+  if (req.method === 'PUT' && nameMatch) {
+    if (READONLY) {
+      json(403, { error: 'Server is in read-only mode' });
+      return;
+    }
+    try {
+      const body = await readBody(req);
+      const project = decodeURIComponent(nameMatch[1]);
+      const id = decodeURIComponent(nameMatch[2]);
+      const name = (body.name || '').trim();
+      if (!name) {
+        json(400, { error: 'Name is required' });
+        return;
+      }
+      const key = `${project}/${id}`;
+      metadata[key] = { ...metadata[key], name };
+      saveMetadata();
+      json(200, { name });
+    } catch (err) {
+      json(400, { error: err.message });
+    }
+    return;
+  }
+
+  // DELETE /api/session/:project/:id/name — clear custom name
+  if (req.method === 'DELETE' && nameMatch) {
+    if (READONLY) {
+      json(403, { error: 'Server is in read-only mode' });
+      return;
+    }
+    const project = decodeURIComponent(nameMatch[1]);
+    const id = decodeURIComponent(nameMatch[2]);
+    const key = `${project}/${id}`;
+    if (metadata[key]) {
+      delete metadata[key].name;
+      if (Object.keys(metadata[key]).length === 0) delete metadata[key];
+      saveMetadata();
+    }
+    json(200, { cleared: true });
     return;
   }
 
